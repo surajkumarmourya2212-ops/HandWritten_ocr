@@ -40,7 +40,8 @@ DIGIT_MODEL_PATH = os.getenv(
 
 CRNN_MODEL_PATH = os.getenv(
     "CRNN_MODEL_PATH",
-    os.path.join(MODELS_DIR, "crnn_model.h5")
+    os.path.join(MODELS_DIR, "model.h5")
+
 )
 
 
