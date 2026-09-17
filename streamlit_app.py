@@ -3,22 +3,18 @@ import numpy as np
 from PIL import Image
 import ocr_utils
 
-
-# ============================================================
-# PAGE SETTINGS
-# ============================================================
-
+# --------------------------------------------------
+# PAGE CONFIG
+# --------------------------------------------------
 st.set_page_config(
     page_title="Handwritten OCR",
     page_icon="✍️",
-    layout="centered"
+    layout="wide"
 )
 
-
-# ============================================================
+# --------------------------------------------------
 # LOAD MODELS
-# ============================================================
-
+# --------------------------------------------------
 @st.cache_resource
 def load_models():
     digit_model = ocr_utils.load_digit_model()
@@ -26,221 +22,156 @@ def load_models():
     return digit_model, crnn_model
 
 
-try:
-    digit_model, crnn_model = load_models()
+digit_model, crnn_model = load_models()
 
-except Exception as e:
-    st.error("❌ Could not load the MNIST digit model.")
-    st.code(str(e))
-    st.stop()
-
-
-# ============================================================
+# --------------------------------------------------
 # TITLE
-# ============================================================
-
-st.title("✍️ Handwritten OCR System")
+# --------------------------------------------------
+st.title("Handwritten OCR")
 
 st.write(
-    "Recognise handwritten digits, words and sentences."
+    "Digit Model: **MNIST TensorFlow/Keras** | "
+    "Text Engine: **Trained CRNN Model**"
 )
 
-
-# ============================================================
-# TEXT ENGINE STATUS
-# ============================================================
-
-if crnn_model is not None:
-    text_engine = "CRNN + CTC"
-
-elif ocr_utils.tesseract_available():
-    text_engine = "Tesseract OCR"
-
-else:
-    text_engine = "No text engine available"
-
-
-st.caption(
-    f"Digit Model: MNIST TensorFlow/Keras | "
-    f"Text Engine: {text_engine}"
-)
-
-
-# ============================================================
-# CREATE TABS
-# ============================================================
-
-tab_digit, tab_text = st.tabs([
+# --------------------------------------------------
+# TABS
+# --------------------------------------------------
+tab1, tab2 = st.tabs([
     "🔢 Digit Recognition",
     "📝 Text Recognition"
 ])
 
+# ==================================================
+# DIGIT RECOGNITION
+# ==================================================
+with tab1:
 
-# ============================================================
-# DIGIT RECOGNITION TAB
-# ============================================================
-
-with tab_digit:
-
-    st.subheader("Handwritten Digit Recognition")
+    st.header("🔢 Digit Recognition")
 
     st.write(
-        "Upload an image containing one handwritten digit (0-9)."
+        "Upload an image containing a handwritten digit "
+        "from 0 to 9."
     )
 
-
-    uploaded_digit = st.file_uploader(
+    digit_file = st.file_uploader(
         "📷 Upload handwritten digit",
         type=["png", "jpg", "jpeg", "webp"],
         key="digit_upload"
     )
 
+    if digit_file is not None:
 
-    if uploaded_digit is not None:
+        image = Image.open(digit_file).convert("L")
 
-        # Open image
-        image = Image.open(uploaded_digit).convert("RGB")
-
-
-        # Display uploaded image
         st.image(
             image,
-            caption="Uploaded Image",
-            use_column_width=True
+            caption="Uploaded Digit",
+            width=250
         )
 
-
-        # Prediction button
         if st.button(
-            "🔍 Predict Digit",
-            type="primary",
-            key="predict_digit"
+            "🔍 Recognize Digit",
+            key="digit_button"
         ):
 
+            image_array = np.array(image)
+
             try:
-
-                image_array = np.array(image)
-
-
-                with st.spinner("Predicting digit..."):
-
-                    result = ocr_utils.predict_digit(
-                        image_array
-                    )
-
-
-                # Display prediction
-                st.success(
-                    f"✅ Predicted Digit: "
-                    f"{result['prediction']}"
+                prediction = ocr_utils.predict_digit(
+                    image_array,
+                    digit_model
                 )
 
+                st.success(
+                    f"### Predicted Digit: **{prediction}**"
+                )
 
             except Exception as e:
 
                 st.error(
-                    f"❌ Error: {e}"
+                    f"Digit recognition error: {e}"
                 )
 
 
-    else:
+# ==================================================
+# HANDWRITTEN TEXT RECOGNITION
+# ==================================================
+with tab2:
 
-        st.info(
-            "Upload an image containing one handwritten digit."
-        )
-
-
-# ============================================================
-# TEXT RECOGNITION TAB
-# ============================================================
-
-with tab_text:
-
-    st.subheader("Handwritten Text Recognition")
+    st.header("📝 Handwritten Text Recognition")
 
     st.write(
-        "Upload an image containing a handwritten word "
-        "or short sentence."
+        "Upload an image containing a handwritten "
+        "word or short sentence."
     )
-
 
     st.info(
-        f"Text engine currently available: "
-        f"**{text_engine}**"
+        "Text engine currently available: "
+        "**Trained CRNN Model (model.h5)**"
     )
 
-
-    uploaded_text = st.file_uploader(
+    text_file = st.file_uploader(
         "📷 Upload handwritten text",
         type=["png", "jpg", "jpeg", "webp"],
         key="text_upload"
     )
 
+    if text_file is not None:
 
-    if uploaded_text is not None:
+        image = Image.open(text_file).convert("RGB")
 
-        # Open image
-        image = Image.open(uploaded_text).convert("RGB")
-
-
-        # Display image
         st.image(
             image,
-            caption="Uploaded Text Image",
-            use_column_width=True
+            caption="Uploaded Handwritten Text",
+            use_container_width=True
         )
 
-
-        # Recognition button
         if st.button(
-            "📝 Recognise Text",
-            type="primary",
-            key="predict_text"
+            "🔍 Recognize Handwritten Text",
+            key="text_button"
         ):
 
-            try:
+            image_array = np.array(image)
 
-                image_array = np.array(image)
+            with st.spinner(
+                "Reading handwritten text..."
+            ):
 
-
-                with st.spinner("Recognising text..."):
+                try:
 
                     result = ocr_utils.predict_text(
                         image_array
                     )
 
+                    if result and result.strip():
 
-                st.success(
-                    "Recognition Complete"
-                )
+                        st.success("### Recognized Text")
 
+                        st.text_area(
+                            "OCR Result",
+                            result,
+                            height=120
+                        )
 
-                st.text_area(
-                    "Recognised Text:",
-                    value=result["prediction"],
-                    height=150
-                )
+                    else:
 
+                        st.warning(
+                            "No text could be recognized."
+                        )
 
-                st.caption(
-                    f"Engine: {result['engine']}"
-                )
+                except Exception as e:
 
+                    st.error(
+                        f"Text recognition error: {e}"
+                    )
 
-            except Exception as e:
-
-                st.error(
-                    f"❌ Error: {e}"
-                )
-
-
-# ============================================================
+# --------------------------------------------------
 # FOOTER
-# ============================================================
-
-st.divider()
+# --------------------------------------------------
+st.markdown("---")
 
 st.caption(
-    "Digit Recognition: MNIST TensorFlow/Keras Model | "
-    "Text Recognition: CRNN + CTC or Tesseract OCR"
+    "Handwritten OCR | MNIST Digit Recognition + "
+    "Trained CRNN Handwritten Text Recognition"
 )
