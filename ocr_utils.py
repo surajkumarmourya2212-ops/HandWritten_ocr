@@ -1,4 +1,3 @@
-```python
 import os
 import numpy as np
 import cv2
@@ -30,9 +29,6 @@ except ImportError:
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 
-# Default paths
-# Can also be overridden using environment variables.
-
 DIGIT_MODEL_PATH = os.getenv(
     "DIGIT_MODEL_PATH",
     os.path.join(MODELS_DIR, "digit_model.keras")
@@ -41,7 +37,6 @@ DIGIT_MODEL_PATH = os.getenv(
 CRNN_MODEL_PATH = os.getenv(
     "CRNN_MODEL_PATH",
     os.path.join(MODELS_DIR, "model.h5")
-
 )
 
 
@@ -451,7 +446,7 @@ def predict_text_crnn(image):
     try:
 
         # ----------------------------------------------------
-        # Get dimensions directly from trained model
+        # Get dimensions from trained model
         # ----------------------------------------------------
 
         height = model.input_shape[1]
@@ -486,7 +481,7 @@ def predict_text_crnn(image):
         )
 
         # ----------------------------------------------------
-        # Exact vocabulary used during training
+        # EXACT vocabulary used during training
         # ----------------------------------------------------
 
         vocab = (
@@ -562,7 +557,6 @@ def predict_text(image):
 
     raise RuntimeError(
         "No text recognition engine available. "
-        "Add models/crnn_model.h5 or install "
+        "Add models/model.h5 or install "
         "Tesseract OCR."
     )
-```
