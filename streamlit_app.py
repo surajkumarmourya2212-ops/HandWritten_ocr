@@ -3,30 +3,46 @@ import numpy as np
 from PIL import Image
 import ocr_utils
 
-# --------------------------------------------------
+
+# ============================================================
 # PAGE CONFIG
-# --------------------------------------------------
+# ============================================================
+
 st.set_page_config(
     page_title="Handwritten OCR",
     page_icon="✍️",
     layout="wide"
 )
 
-# --------------------------------------------------
+
+# ============================================================
 # LOAD MODELS
-# --------------------------------------------------
+# ============================================================
+
 @st.cache_resource
 def load_models():
+
     digit_model = ocr_utils.load_digit_model()
-    crnn_model = ocr_utils.load_crnn_model()
-    return digit_model, crnn_model
+    text_model = ocr_utils.load_crnn_model()
+
+    return digit_model, text_model
 
 
-digit_model, crnn_model = load_models()
+try:
 
-# --------------------------------------------------
+    digit_model, text_model = load_models()
+
+except Exception as e:
+
+    st.error("Model loading error")
+    st.code(str(e))
+    st.stop()
+
+
+# ============================================================
 # TITLE
-# --------------------------------------------------
+# ============================================================
+
 st.title("Handwritten OCR")
 
 st.write(
@@ -34,23 +50,29 @@ st.write(
     "Text Engine: **Trained CRNN Model**"
 )
 
-# --------------------------------------------------
-# TABS
-# --------------------------------------------------
-tab1, tab2 = st.tabs([
-    "🔢 Digit Recognition",
-    "📝 Text Recognition"
-])
 
-# ==================================================
+# ============================================================
+# TABS
+# ============================================================
+
+digit_tab, text_tab = st.tabs(
+    [
+        "🔢 Digit Recognition",
+        "📝 Text Recognition"
+    ]
+)
+
+
+# ============================================================
 # DIGIT RECOGNITION
-# ==================================================
-with tab1:
+# ============================================================
+
+with digit_tab:
 
     st.header("🔢 Digit Recognition")
 
     st.write(
-        "Upload an image containing a handwritten digit "
+        "Upload an image containing one handwritten digit "
         "from 0 to 9."
     )
 
@@ -62,44 +84,100 @@ with tab1:
 
     if digit_file is not None:
 
-        image = Image.open(digit_file).convert("L")
+        try:
 
-        st.image(
-            image,
-            caption="Uploaded Digit",
-            width=250
-        )
+            digit_image = Image.open(
+                digit_file
+            ).convert("L")
 
-        if st.button(
-            "🔍 Recognize Digit",
-            key="digit_button"
-        ):
+            # Simple Streamlit 1.39 compatible image display
+            st.image(
+                digit_image,
+                caption="Uploaded Digit"
+            )
 
-            image_array = np.array(image)
+            if st.button(
+                "🔍 Recognize Digit",
+                key="digit_button"
+            ):
 
-            try:
-                prediction = ocr_utils.predict_digit(
-                    image_array,
-                    digit_model
+                image_array = np.array(
+                    digit_image
                 )
 
-                st.success(
-                    f"### Predicted Digit: **{prediction}**"
-                )
+                try:
 
-            except Exception as e:
+                    # IMPORTANT:
+                    # Only ONE argument is passed.
+                    prediction_result = (
+                        ocr_utils.predict_digit(
+                            image_array
+                        )
+                    )
 
-                st.error(
-                    f"Digit recognition error: {e}"
-                )
+                    if isinstance(
+                        prediction_result,
+                        dict
+                    ):
+
+                        prediction = prediction_result.get(
+                            "prediction",
+                            ""
+                        )
+
+                        confidence = prediction_result.get(
+                            "confidence",
+                            None
+                        )
+
+                    else:
+
+                        prediction = prediction_result
+                        confidence = None
 
 
-# ==================================================
+                    st.success(
+                        f"Predicted Digit: **{prediction}**"
+                    )
+
+
+                    if confidence is not None:
+
+                        st.write(
+                            f"Confidence: "
+                            f"**{confidence * 100:.2f}%**"
+                        )
+
+                except Exception as e:
+
+                    st.error(
+                        "Digit recognition error"
+                    )
+
+                    st.code(
+                        str(e)
+                    )
+
+        except Exception as e:
+
+            st.error(
+                "Could not open digit image"
+            )
+
+            st.code(
+                str(e)
+            )
+
+
+# ============================================================
 # HANDWRITTEN TEXT RECOGNITION
-# ==================================================
-with tab2:
+# ============================================================
 
-    st.header("📝 Handwritten Text Recognition")
+with text_tab:
+
+    st.header(
+        "📝 Handwritten Text Recognition"
+    )
 
     st.write(
         "Upload an image containing a handwritten "
@@ -107,9 +185,9 @@ with tab2:
     )
 
     st.info(
-        "Text engine currently available: "
-        "**Trained CRNN Model (model.h5)**"
+        "Text engine: **Trained CRNN Model (`model.h5`)**"
     )
+
 
     text_file = st.file_uploader(
         "📷 Upload handwritten text",
@@ -117,61 +195,134 @@ with tab2:
         key="text_upload"
     )
 
+
     if text_file is not None:
 
-        image = Image.open(text_file).convert("RGB")
+        try:
 
-        st.image(
-            image,
-            caption="Uploaded Handwritten Text",
-            use_container_width=True
-        )
+            text_image = Image.open(
+                text_file
+            ).convert("RGB")
 
-        if st.button(
-            "🔍 Recognize Handwritten Text",
-            key="text_button"
-        ):
+            # Simple Streamlit-compatible display
+            st.image(
+                text_image,
+                caption="Uploaded Handwritten Text"
+            )
 
-            image_array = np.array(image)
 
-            with st.spinner(
-                "Reading handwritten text..."
+            if st.button(
+                "🔍 Recognize Handwritten Text",
+                key="text_button"
             ):
 
-                try:
+                image_array = np.array(
+                    text_image
+                )
 
-                    result = ocr_utils.predict_text(
-                        image_array
-                    )
 
-                    if result and result.strip():
+                with st.spinner(
+                    "Reading handwritten text..."
+                ):
 
-                        st.success("### Recognized Text")
+                    try:
 
-                        st.text_area(
-                            "OCR Result",
+                        result = (
+                            ocr_utils.predict_text(
+                                image_array
+                            )
+                        )
+
+
+                        if isinstance(
                             result,
-                            height=120
+                            dict
+                        ):
+
+                            recognized_text = (
+                                result.get(
+                                    "prediction",
+                                    ""
+                                )
+                            )
+
+                            engine = (
+                                result.get(
+                                    "engine",
+                                    "Trained CRNN Model"
+                                )
+                            )
+
+                        else:
+
+                            recognized_text = str(
+                                result
+                            )
+
+                            engine = (
+                                "Trained CRNN Model"
+                            )
+
+
+                        recognized_text = (
+                            recognized_text.strip()
                         )
 
-                    else:
 
-                        st.warning(
-                            "No text could be recognized."
+                        if recognized_text:
+
+                            st.success(
+                                "Recognized Text"
+                            )
+
+                            st.text_area(
+                                "OCR Result",
+                                recognized_text,
+                                height=150
+                            )
+
+                            st.caption(
+                                f"Engine: {engine}"
+                            )
+
+                        else:
+
+                            st.warning(
+                                "No handwritten text "
+                                "was recognized."
+                            )
+
+
+                    except Exception as e:
+
+                        st.error(
+                            "Text recognition error"
                         )
 
-                except Exception as e:
+                        st.code(
+                            str(e)
+                        )
 
-                    st.error(
-                        f"Text recognition error: {e}"
-                    )
 
-# --------------------------------------------------
+        except Exception as e:
+
+            st.error(
+                "Could not open text image"
+            )
+
+            st.code(
+                str(e)
+            )
+
+
+# ============================================================
 # FOOTER
-# --------------------------------------------------
+# ============================================================
+
 st.markdown("---")
 
 st.caption(
-    "Handwritten OCR | MNIST Digit Recognition + "
+    "Handwritten OCR | "
+    "MNIST Digit Recognition + "
     "Trained CRNN Handwritten Text Recognition"
 )
